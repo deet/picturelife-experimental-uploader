@@ -1,0 +1,28 @@
+body {
+  background-color: rgb(240, 241, 242);
+  font-size: 12px;
+}
+
+.header {
+  sbackground-color: rgb(240, 241, 242);
+  border-bottom: 2px solid rgb(200,201,202);
+  margin-bottom: 20px;
+}
+
+table {
+  background: none
+}
+
+.container {
+  background-color: #fff;
+  border: 20px solid rgb(250, 251, 252);
+
+}
+
+#files {
+  font-size: 12px;
+}
+
+#filesystem, #directories {
+  font-size: 12px;
+}

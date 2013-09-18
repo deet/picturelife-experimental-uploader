@@ -1,0 +1,4 @@
+data/*.json
+libpeerconnection.log
+picturelife-experimental-uploader
+client.json

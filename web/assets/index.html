@@ -1,0 +1,467 @@
+<html>
+  <head>
+    <title>Picturelife Experimental Uploader</title>
+    <link href="css/bootstrap.css" rel="stylesheet">
+    <link href="css/bootstrap-responsive.css" rel="stylesheet">
+    <link href="css/application.css" rel="stylesheet">
+  </head>
+  <body>
+    <div class="container">
+      <div class="row-fluid">
+        <div class="span12 header">
+          <h1>
+            Picturelife Experimental Uploader
+          </h1>
+        </div>
+      </div>
+
+      <div class="row-fluid">
+        <div class="span12">
+          <ul class="nav nav-tabs" id="myTab">
+            <li><a href="#statusTab" data-toggle="tab">Status</a></li>
+            <li class=""><a href="#localFilesTab" data-toggle="tab">Local files</a></li>
+            <li class="active"><a href="#directoriesTab" data-toggle="tab">Directories</a></li>
+            <li><a href="#settingsTab" data-toggle="tab">Settings</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="row-fluid">
+        <div class="span12">         
+
+          <div class="tab-content">
+            <div class="tab-pane" id="statusTab">
+              Status
+            </div>
+            <div class="tab-pane" id="localFilesTab">.
+              <table id="files" class="table table-condensed table-striped">
+                <thead>
+                  <th data-sort="string">Name <br /><small><em>Signature</em></small></th>
+                  <th data-sort="string">Extension</th>
+                  <th data-sort="string">Status</th>
+                  <th data-sort="string">Media Id</th>
+                  <th data-sort="string">Pending Media Id</th>
+                  <th data-sort="string">Last updated</th>
+                  <th></th>
+                </thead>
+                <tbody>
+                </tbody>
+              </table>
+            </div>
+            <div class="tab-pane active" id="directoriesTab">
+              <h2>Watched directories</h2>
+              <div class="row-fluid">
+                <table id="directories" class="table table-condensed table-striped">
+                  <thead>
+                    <th class="span1"></th>
+                    <th class="span7" data-sort="string">Path</th>
+                    <th class="span2" data-sort="string">Upload enabled?</th>
+                    <th class="span1" data-sort="string">Missing</th>
+                    <th class="span1"></th>
+                  </thead>
+                  <tbody>
+                  </tbody>
+                </table>
+              </div>
+              <hr>
+              <div class="row-fluid">
+                <div class="span12">
+                  <h2>Filesystem</h2>
+                </div>
+              </div>
+              <div class="row-fluid">
+                <div class="span2">
+                  <button class="btn" id="upDirectory">
+                    <i class="icon-arrow-up"></i>
+                    Back
+                  </button>
+                </div>
+                <div class="span10" id="filesystemPath">
+
+                </div>
+              </div>
+              <div class="row-fluid">
+                <table id="filesystem" class="table table-condensed table-striped">
+                  <thead>
+                    <th class="span1"></th>
+                    <th class="span6" data-sort="string">Name</th>
+                    <th class="span1" data-sort="int">Media inside</th>
+                    <th class="span1" data-sort="int">Directories inside</th>
+                    <th class="span1" data-sort="string">Type</th>
+                    <th class="span1" data-sort="string">Upload enabled?</th>
+                    <th class="span1"></th>
+                  </thead>
+                  <tbody>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="tab-pane" id="settingsTab">
+              <table id="settings" class="table table-condensed table-striped">
+                <thead>
+                  <th></th>
+                  <th></th>
+                </thead>
+                <tbody>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <div id="reconnectModal" class="modal hide fade">
+      <div class="modal-header">
+        <h3>Reconnect</h3>
+      </div>
+      <div class="modal-body">
+        <p>Connection to local process. Please ensure Picturelife is running and reconnect.</p>
+      </div>
+      <div class="modal-footer">
+        <a href="#" class="btn btn-primary" id="reconnectButton">Reconnect</a>
+      </div>
+    </div>
+
+    <div id="unsupportedBrowserModal" class="modal hide fade">
+      <div class="modal-header">
+        <h3>Unsupported browser</h3>
+      </div>
+      <div class="modal-body">
+        <p>Your browser is not supported. Please install a recent version of Chrome, Firefox, Safari, or Internet Explorer 10+.</p>
+      </div>
+      <div class="modal-footer">
+
+      </div>
+    </div>
+
+    <script src="js/jquery-1.9.1.js"></script>
+    <script src="js/bootstrap.js"></script>
+    <script src="js/stupidtable.js"></script>
+    
+    <script>
+      $(function () {
+        var exampleSocket = new WebSocket("ws://localhost:7111/ws", "protocolOne");
+
+        $("table").stupidtable();
+
+        var requests = {};
+        var currentPath = "/";
+        var oldPath = [];
+        var conn = null;
+
+        function hashCode(str){
+          // taken from the internets. makes int from string
+          var hash = 0;
+          if (str.length == 0) return hash;
+          for (i = 0; i < str.length; i++) {
+              char = str.charCodeAt(i);
+              hash = ((hash<<5)-hash)+char;
+              hash = hash & hash; // Convert to 32bit integer
+          }
+          return hash;
+        }
+
+        function sendRequest(conn, data, handler) {
+          requestId = Math.floor(Math.random()*1000000);
+          data['RequestId'] = requestId.toString(); 
+          var message = JSON.stringify(data);
+          console.log("Message: " + message)
+          requests[requestId] = handler;
+          conn.send(message);
+        }
+
+        function handleDirectoryContents(data) {
+          $('#filesystem > tbody').empty();
+          data.sort(function(a,b) { 
+            var startsWithDot = function(s) {
+              return s.slice(0,1) === ".";
+            };
+            if(a.IsDir && !b.IsDir) return -1;
+            if(!a.IsDir && b.IsDir) return 1;
+            if(!startsWithDot(a.Name) && startsWithDot(b.Name)) return -1;
+            if(startsWithDot(a.Name) && !startsWithDot(b.Name)) return 1;
+            if(a.Name < b.Name) return -1;
+            if(a.Name > b.Name) return 1;
+            return 0;
+          });
+          $('#upDirectory').off();
+          console.log("making up button. currentPath: " + currentPath);
+          if (oldPath[oldPath.length - 1] !== currentPath) {
+            oldPath.push(currentPath);
+          }
+          console.log("pushed to oldPath " + JSON.stringify(oldPath));
+          $('#upDirectory').on('click', function (e) {
+            if (oldPath.length == 1) {
+                console.log("already at root");
+                return;
+              }
+            console.log("oldPath before pop: " + JSON.stringify(oldPath));
+            oldPath.pop();
+            var newPath = oldPath[oldPath.length - 1];
+            currentPath = newPath;
+            console.log("returning to path: " + newPath);
+            sendRequest(conn, {type: "getDirectoryContents", data:newPath}, handleDirectoryContents);
+          });
+          $('#filesystemPath').empty();
+          //for (index in oldPath) {
+          var newBc = $('<div />').append($('<a />').text(oldPath[oldPath.length - 1]));
+          $('#filesystemPath').append(newBc);
+          //}
+          for (index in data) {
+            var row = data[index];
+            if (row.IsDir === false && row.IsMedia === false) {
+              continue;
+            }
+            //console.log("received content: " + row);
+            var newEl = $("<tr/>");
+
+            var visitButton = $("<button/>").addClass("btn btn-mini").text("View")
+            visitButton.on('click', function(filePath) { return function (e) {
+              currentPath = filePath;
+              sendRequest(conn, {type: "getDirectoryContents", data:filePath}, handleDirectoryContents);
+            }}(row.FullPath));
+            if (!row.IsMedia) {
+              newEl.append($("<td/>").append(visitButton));
+            } else {
+              newEl.append($("<td/>"));
+            }
+
+            var type = "Directory";
+            if (row.IsMedia) type = "Picture";
+
+            newEl.append($("<td/>").text(row.Name));
+            newEl.append($("<td/>").text(row.MediaContained));
+            newEl.append($("<td/>").text(row.DirectoriesContained));
+            newEl.append($("<td/>").text(type));
+            newEl.append($("<td/>").text(row.Upload));
+
+            var actionEl = $("<td/>");
+
+            if (type === "Picture") {
+              var uploadNowButton = $("<button/>").addClass("btn btn-mini").text("Upload now");
+              uploadNowButton.on('click', function(path) { return function (e) {
+                sendRequest(conn, {type: "uploadFileOrDirectory", data:path}, function(data) { console.log("upload response:" + data)});
+                $(e.target).hide();
+              }}(row.FullPath)); 
+              actionEl.append(uploadNowButton);
+            }
+
+            //console.log("directory upload: " + row.Upload);
+            if (type === "Directory") {
+              if (row.Upload == true) {
+                actionEl.text("Watching");                
+              } else {
+                var watchButton = $("<button/>").addClass("btn btn-mini").html('<i class="icon-eye-open"></i> Upload and watch');
+                watchButton.on('click', function(path) { return function (e) {
+                  sendRequest(conn, {type: "watchAndUploadDirectory", data:path}, function(data) { console.log("upload response:" + data)});
+                  $(e.target).hide();
+                }}(row.FullPath));
+                actionEl.append(watchButton);
+              }
+            }
+
+            newEl.append(actionEl);
+
+            $('#filesystem > tbody').append(newEl);
+          }
+
+        }
+
+        function handleSettingsData(data) {
+          $('#settings > tbody').empty();
+
+          for (key in data) {
+            var value = data[key];
+
+            var newEl = $("<tr/>");
+            newEl.append($("<td/>").text(key));
+            newEl.append($("<td/>").text(value));
+            
+            $('#settings > tbody').append(newEl);
+          }
+
+        }        
+
+        function handleLocalFiles(data) { 
+          console.log("in handleLocalFiles with data " + JSON.stringify(data));    
+          for (index in data) {
+            var file = data[index];
+
+            console.log("received file: " + JSON.stringify(file));
+
+            var sig = file.Signature;
+            if (sig === "") {
+              console.log("missing sig");
+              continue;
+            }
+            var elId = "file-" + sig;
+            var existingEl = $("#" + elId);
+            var newEl = $("<tr/>");
+            newEl.append($("<td/>").append($("<div/>").text(file.Name)).append($("<small/>").text(sig)).append($("<div/>").text(file.Path)));
+            newEl.append($("<td/>").text(file.Extension));
+            newEl.append($("<td/>").text(file.Status));
+            newEl.append($("<td/>").text(file.MediaId));
+            newEl.append($("<td/>").text(file.PendingMediaId));
+            newEl.append($("<td/>").text(file.UpdatedAt));
+            if (file.Status === "errored") {
+              var retryButton = $("<button/>").addClass("btn btn-mini").text("Retry")
+              retryButton.on('click', function(signature) { return function (e) {
+                sendRequest(conn, {type: "retryUpload", data:signature}, function(data) { console.log("retry response:" + data)});
+              }}(sig));
+              newEl.append($("<td/>").append(retryButton));
+            } else if (file.Status === "uploaded-deleted") {
+              var retryButton = $("<button/>").addClass("btn btn-mini").text("Reupload and undelete")
+              retryButton.on('click', function(signature) { return function (e) {
+                sendRequest(conn, {type: "retryUpload", data:signature}, function(data) { console.log("retry response:" + data)});
+              }}(sig));
+              newEl.append($("<td/>").append(retryButton));
+            } else {
+              newEl.append($("<td/>"));
+            }
+            //console.log(existingEl);
+            if (existingEl.length !== 0) {
+              newEl.attr("id", elId);
+              existingEl.replaceWith(newEl);
+            } else {
+              //console.log("no existing element");
+              newEl.attr("id", elId);
+              $('#files > tbody').append(newEl);
+            }
+          }
+        }     
+
+        function handleLocalDirectories(data) { 
+          console.log("in handleLocalDirectories with data " + JSON.stringify(data));    
+          for (index in data) {
+            var directory = data[index];
+
+            console.log("received directory: " + JSON.stringify(directory));
+
+            var path = directory.Path;
+            if (path === "") {
+              console.log("missing path");
+              continue;
+            }
+            var hash = hashCode(path);
+            var elId = "directory-" + hash;
+            var existingEl = $("#" + elId);
+            var newEl = $("<tr/>");
+
+            var visitButton = $("<button/>").addClass("btn btn-mini").html('View');
+            visitButton.on('click', function(filePath) { return function (e) {
+              currentPath = filePath;
+              sendRequest(conn, {type: "getDirectoryContents", data:filePath}, handleDirectoryContents);
+            }}(directory.Path));
+            newEl.append(($("<td/>").append(visitButton)));
+
+            newEl.append($("<td/>").append($("<div/>").text(directory.Path)));
+            newEl.append($("<td/>").text(directory.Upload));
+            newEl.append($("<td/>").text(directory.MissingOnFilesystem));
+
+            var actionEl = $("<td/>");
+
+            if (directory.MissingOnFilesystem === false && directory.Upload === true) {
+              var unwatchButton = $("<button/>").addClass("btn btn-mini").html('<i class="icon-eye-close"></i> Unwatch')
+              unwatchButton.on('click', function(pathl) { return function (e) {
+                sendRequest(conn, {type: "unwatchDirectory", data:pathl}, function(data) { console.log("unwatch response:" + data)});
+              }}(path));
+              actionEl.append(unwatchButton);
+            } else {
+              var watchButton = $("<button/>").addClass("btn btn-mini").html('<i class="icon-eye-open"></i> Upload and watch');
+              watchButton.on('click', function(pathl) { return function (e) {
+                sendRequest(conn, {type: "watchAndUploadDirectory", data:pathl}, function(data) { console.log("upload response:" + data)});
+              }}(path));
+              actionEl.append(watchButton);
+            }
+
+            var forgetButton = $("<button/>").addClass("btn btn-mini").html('Forget');
+            forgetButton.on('click', function(pathl) { return function (e) {
+              sendRequest(conn, {type: "forgetDirectory", data:pathl}, function(data) { console.log("forget response:" + data)});
+            }}(path));
+            actionEl.append(forgetButton);
+
+            newEl.append(actionEl);
+
+            //console.log(existingEl);
+            if (existingEl.length !== 0) {
+              newEl.attr("id", elId);
+              existingEl.replaceWith(newEl);
+            } else {
+              //console.log("no existing element");
+              newEl.attr("id", elId);
+              $('#directories > tbody').append(newEl);
+            }
+          }
+        }           
+
+        function handleLocalDirectoryDelete(data) { 
+          console.log("in handleLocalDirectoryDelete with data " + JSON.stringify(data));    
+          
+          var hash = hashCode(data);
+          var elId = "directory-" + hash;
+          var existingEl = $("#" + elId);
+         
+          $(existingEl).remove();
+        }           
+
+        function connectToService() {         
+          requests = {};
+          conn = new WebSocket("ws://localhost:7111/ws");
+          conn.onopen = function (event) {
+            console.log("ws opened");
+            $('#reconnectModal').modal('hide');
+            sendRequest(conn, {type: "getDirectoryContents", data:currentPath}, handleDirectoryContents);
+            sendRequest(conn, {type: "listSettings"}, handleSettingsData);
+            sendRequest(conn, {type: "getLocalFiles"}, handleLocalFiles);
+            sendRequest(conn, {type: "getLocalDirectories"}, handleLocalDirectories);
+          };
+          conn.onclose = function(evt) {
+            $('#log').append($("<div><b>Connection closed.</b></div>"));
+            $('#reconnectModal').modal({keyboard: false, backdrop:"static"});
+            $('#reconnectButton').off();
+            $('#reconnectButton').on('click', function(e) {
+              console.log("Trying to reconnect.");
+              connectToService();
+            });
+          }
+          conn.onmessage = function(evt) {
+            $('#log').append(($("<div/>").text(evt.data)));
+            var response = JSON.parse(evt.data);
+            switch (response.Type) {
+              case 'Response':
+                var requestId = response.RequestId;
+                var handler = requests[requestId];
+                if (typeof handler != 'undefined') {
+                  handler(response.Data);
+                }
+                break;                         
+              case "FileUpdate":
+                handleLocalFiles(response.Data);
+                break;
+              case "DirectoryUpdate":
+                handleLocalDirectories(response.Data);
+                break;
+              case "DirectoryDelete":
+                handleLocalDirectoryDelete(response.Data);
+                break;                                
+              default:
+                console.log("Unhandled message type: " + response.Type);
+            }
+            
+          }
+        }        
+
+
+        if (window["WebSocket"]) {
+          connectToService();
+        } else {
+          $('#log').append("<div><b>Your browser does not support WebSockets.</b></div>");
+          $('#unsupportedBrowserModal').modal();
+        }
+      });
+    </script>
+  </body>
+</html>
