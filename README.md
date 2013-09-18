@@ -20,7 +20,7 @@ Known issues:
 - Logging is ugly and verbose
 - Error handling results in ugly log messages
 
-It has been tested on Ubuntu, Windows, and OS X. Success is not guaranteed. And it was developed and tested primarily on Ubuntu. Currently, the OS X build will only run if you disable the tray icon. To build on Windows, you need to create an icon file (see the documentation for the Trayhost import).
+It has been tested on Ubuntu, Windows, and OS X. Success is not guaranteed. Tt was developed and tested primarily on Ubuntu. There have been issues with dependencies related to trayhost on OS X. Building on windows might require gcc.
 
 # Binary versions
 
@@ -46,7 +46,7 @@ Copy client_sample.json to client.json and fill in with the values you received.
 ## Running
 
   go build
-  ./picturelife-experimental-uploader
+  ./picturelife-experimental-uploader 
 
 Windows (and possibly OS X) firewalls may prompt to allow network access. To use the browser-based GUI, you should allow this.
 
