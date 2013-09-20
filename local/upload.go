@@ -1,8 +1,8 @@
 package local
 
 import (
-	"../util"
 	"errors"
+	"github.com/deet/picturelife-experimental-uploader/util"
 	"log"
 	"os"
 	"path/filepath"

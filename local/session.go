@@ -1,8 +1,8 @@
 package local
 
 import (
-	"../api"
 	"fmt"
+	"github.com/deet/picturelife-experimental-uploader/api"
 	"log"
 	"os"
 )

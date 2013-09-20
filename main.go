@@ -1,11 +1,11 @@
 package main
 
 import (
-	"./local"
-	"./web"
 	"flag"
 	"fmt"
 	"github.com/cratonica/trayhost"
+	"github.com/deet/picturelife-experimental-uploader/local"
+	"github.com/deet/picturelife-experimental-uploader/web"
 	"log"
 	"os"
 	"path/filepath"

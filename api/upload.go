@@ -1,8 +1,8 @@
 package api
 
 import (
-	"../util"
 	"fmt"
+	"github.com/deet/picturelife-experimental-uploader/util"
 	"log"
 	"net/url"
 )

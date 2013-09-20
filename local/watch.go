@@ -1,7 +1,7 @@
 package local
 
 import (
-	"../util"
+	"github.com/deet/picturelife-experimental-uploader/util"
 	"github.com/howeyc/fsnotify"
 	"log"
 )

@@ -1,10 +1,10 @@
 package web
 
 import (
-	"../local"
 	"code.google.com/p/go.net/websocket"
 	"encoding/json"
 	"github.com/cratonica/trayhost"
+	"github.com/deet/picturelife-experimental-uploader/local"
 	"log"
 	"net/http"
 	"os"

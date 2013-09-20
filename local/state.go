@@ -1,8 +1,8 @@
 package local
 
 import (
-	"../api"
 	"encoding/json"
+	"github.com/deet/picturelife-experimental-uploader/api"
 	"io/ioutil"
 	"log"
 	"time"
